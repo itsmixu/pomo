@@ -13,7 +13,6 @@ const startButton = document.getElementById('start-button');
 const pauseButton = document.getElementById('pause-button');
 const resumeButton = document.getElementById('resume-button');
 const resetButton = document.getElementById('reset-button');
-const lengthInput = document.getElementById('session-length');
 const todoForm = document.getElementById('todo-form');
 const todoInput = document.getElementById('todo-input');
 const todoListEl = document.getElementById('todo-list');
@@ -21,6 +20,9 @@ const historyListEl = document.getElementById('history-list');
 const historyEmptyEl = document.getElementById('history-empty');
 const clearHistoryButton = document.getElementById('clear-history');
 const historyTemplate = document.getElementById('history-item-template');
+
+const MIN_SESSION_SECONDS = 30;
+const MAX_SESSION_SECONDS = 90 * 60;
 
 const circleRadius = parseFloat(progressCircle.getAttribute('r'));
 const circleCircumference = 2 * Math.PI * circleRadius;
@@ -34,10 +36,15 @@ const datetimeFormatter = new Intl.DateTimeFormat(undefined, {
 
 let tasks = loadFromStorage(STORAGE_KEYS.tasks, []);
 let sessions = loadFromStorage(STORAGE_KEYS.sessions, []);
-const settings = loadFromStorage(STORAGE_KEYS.settings, { lastDurationMinutes: 25 });
+const settings = normalizeSettings(
+  loadFromStorage(STORAGE_KEYS.settings, { lastDurationSeconds: 25 * 60 })
+);
 
-const initialMinutes = clampMinutes(settings.lastDurationMinutes ?? 25);
-lengthInput.value = initialMinutes;
+persistDurationSetting(settings.lastDurationSeconds);
+
+const initialSeconds = clampDurationSeconds(settings.lastDurationSeconds);
+let isCountdownEditing = false;
+let countdownEditBackup = '';
 
 class PomodoroTimer {
   constructor({ totalSeconds = 1500, onTick, onStateChange, onComplete } = {}) {
@@ -56,7 +63,7 @@ class PomodoroTimer {
   }
 
   configure(totalSeconds) {
-    const clampedSeconds = Math.max(60, totalSeconds);
+    const clampedSeconds = clampDurationSeconds(totalSeconds);
     this.totalSeconds = clampedSeconds;
     this.totalMs = clampedSeconds * 1000;
     if (this.state === 'running' || this.state === 'paused') {
@@ -103,6 +110,23 @@ class PomodoroTimer {
     this.startTimestamp = null;
     this.switchState('idle');
     this.emitTick();
+  }
+
+  setDuration(totalSeconds) {
+    const clamped = clampDurationSeconds(totalSeconds);
+    this.totalSeconds = clamped;
+    this.totalMs = clamped * 1000;
+    if (this.state === 'idle' || this.state === 'complete') {
+      this.elapsedMsBase = 0;
+      this.remainingSeconds = this.totalSeconds;
+      this.emitTick();
+    } else if (this.state === 'paused') {
+      this.elapsedMsBase = Math.min(this.totalMs, this.totalMs - this.remainingSeconds * 1000);
+      this.remainingSeconds = Math.max(0, (this.totalMs - this.elapsedMsBase) / 1000);
+      this.emitTick();
+    } else if (this.state === 'running') {
+      this.elapsedMsBase = Math.min(this.totalMs, this.totalMs - this.remainingSeconds * 1000);
+    }
   }
 
   complete() {
@@ -179,7 +203,7 @@ class PomodoroTimer {
 }
 
 const timer = new PomodoroTimer({
-  totalSeconds: initialMinutes * 60,
+  totalSeconds: initialSeconds,
   onTick: updateTimerDisplay,
   onStateChange: updateTimerState,
   onComplete: captureSession
@@ -192,6 +216,7 @@ setupTabs();
 setupControls();
 setupTodoForm();
 setupHistoryActions();
+setupCountdownEditor();
 
 function setupTabs() {
   tabButtons.forEach((button) => {
@@ -223,14 +248,6 @@ function setupControls() {
   pauseButton.addEventListener('click', () => timer.pause());
   resumeButton.addEventListener('click', () => timer.resume());
   resetButton.addEventListener('click', () => timer.reset());
-
-  lengthInput.addEventListener('change', () => {
-    const minutes = clampMinutes(parseInt(lengthInput.value, 10));
-    lengthInput.value = minutes;
-    settings.lastDurationMinutes = minutes;
-    persistStorage(STORAGE_KEYS.settings, settings);
-    timer.configure(minutes * 60);
-  });
 }
 
 function setupTodoForm() {
@@ -264,14 +281,103 @@ function setupHistoryActions() {
   });
 }
 
+function setupCountdownEditor() {
+  countdownEl.addEventListener('focus', handleCountdownFocus);
+  countdownEl.addEventListener('blur', handleCountdownBlur);
+  countdownEl.addEventListener('keydown', handleCountdownKeydown);
+  countdownEl.addEventListener('paste', handleCountdownPaste);
+}
+
+function handleCountdownFocus() {
+  isCountdownEditing = true;
+  countdownEditBackup = countdownEl.textContent?.trim() ?? '';
+  countdownEl.dataset.editing = 'true';
+  if (timer.state === 'running') {
+    timer.pause();
+  }
+  requestAnimationFrame(() => selectCountdownText(countdownEl));
+}
+
+function handleCountdownBlur() {
+  if (!isCountdownEditing) return;
+  isCountdownEditing = false;
+  countdownEl.dataset.editing = 'false';
+
+  const parsedSeconds = parseDurationText(countdownEl.textContent ?? '');
+
+  if (parsedSeconds == null) {
+    countdownEl.textContent = formatClock(timer.totalSeconds);
+    if (timer.state !== 'idle') {
+      timer.reset();
+    }
+    return;
+  }
+
+  const nextSeconds = clampDurationSeconds(parsedSeconds);
+
+  if (nextSeconds !== timer.totalSeconds) {
+    timer.setDuration(nextSeconds);
+    timer.reset();
+    persistDurationSetting(nextSeconds);
+  } else if (timer.state !== 'idle') {
+    timer.reset();
+  } else {
+    countdownEl.textContent = formatClock(timer.totalSeconds);
+  }
+}
+
+function handleCountdownKeydown(event) {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    countdownEl.blur();
+    return;
+  }
+
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    countdownEl.textContent = countdownEditBackup || formatClock(timer.totalSeconds);
+    countdownEl.blur();
+    return;
+  }
+
+  if (event.ctrlKey || event.metaKey || event.altKey) {
+    return;
+  }
+
+  const allowedNavigationKeys = ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'Tab'];
+  if (allowedNavigationKeys.includes(event.key)) {
+    return;
+  }
+
+  if (event.key === ':') {
+    const existing = countdownEl.textContent ?? '';
+    if (existing.includes(':') || existing.trim().length === 0) {
+      event.preventDefault();
+      return;
+    }
+  }
+
+  if (!/^[0-9:]$/.test(event.key)) {
+    event.preventDefault();
+  }
+}
+
+function handleCountdownPaste(event) {
+  event.preventDefault();
+  const text = event.clipboardData?.getData('text') ?? '';
+  const sanitized = sanitizeDurationInput(text);
+  insertTextAtCursor(sanitized);
+}
+
 function updateTimerDisplay({ remainingSeconds, totalSeconds, state }) {
+  const editing = isCountdownEditing;
   const safeRemaining = Math.max(0, remainingSeconds);
   const minutesValue = Math.floor(safeRemaining / 60);
   const secondsValue = Math.floor(safeRemaining % 60);
   const minutes = minutesValue.toString().padStart(2, '0');
   const seconds = secondsValue.toString().padStart(2, '0');
   const nextDisplay = `${minutes}:${seconds}`;
-  if (countdownEl.textContent !== nextDisplay) {
+  if (!editing && countdownEl.textContent !== nextDisplay) {
     countdownEl.textContent = nextDisplay;
   }
 
@@ -279,18 +385,18 @@ function updateTimerDisplay({ remainingSeconds, totalSeconds, state }) {
   const progress = total === 0 ? 0 : 1 - safeRemaining / total;
   setProgress(progress);
 
-  const baseTitle = 'Focus Flow';
-  if (state === 'running') {
-    const nextTitle = `${baseTitle} • ${minutes}:${seconds}`;
-    if (document.title !== nextTitle) {
-      document.title = nextTitle;
-    }
-  } else if (state === 'complete') {
-    if (document.title !== `${baseTitle} • Done!`) {
-      document.title = `${baseTitle} • Done!`;
-    }
-  } else {
-    if (document.title !== baseTitle) {
+  if (!editing) {
+    const baseTitle = 'Focus Flow';
+    if (state === 'running') {
+      const nextTitle = `${baseTitle} • ${minutes}:${seconds}`;
+      if (document.title !== nextTitle) {
+        document.title = nextTitle;
+      }
+    } else if (state === 'complete') {
+      if (document.title !== `${baseTitle} • Done!`) {
+        document.title = `${baseTitle} • Done!`;
+      }
+    } else if (document.title !== baseTitle) {
       document.title = baseTitle;
     }
   }
@@ -306,7 +412,6 @@ function updateTimerState(state) {
   startButton.disabled = stateIsRunning || stateIsPaused;
   pauseButton.disabled = !stateIsRunning;
   resumeButton.disabled = !stateIsPaused;
-  lengthInput.disabled = stateIsRunning;
 
   startButton.textContent = stateIsComplete ? 'Restart Focus' : 'Start Focus';
 
@@ -477,9 +582,108 @@ function persistStorage(key, value) {
   }
 }
 
-function clampMinutes(minutes) {
-  if (Number.isNaN(minutes)) return 25;
-  return Math.min(90, Math.max(1, minutes));
+function normalizeSettings(rawSettings) {
+  const normalized = { ...rawSettings };
+
+  if (typeof normalized.lastDurationSeconds !== 'number') {
+    if (typeof normalized.lastDurationMinutes === 'number') {
+      normalized.lastDurationSeconds = normalized.lastDurationMinutes * 60;
+    } else {
+      normalized.lastDurationSeconds = 25 * 60;
+    }
+  }
+
+  normalized.lastDurationSeconds = clampDurationSeconds(normalized.lastDurationSeconds);
+  delete normalized.lastDurationMinutes;
+
+  return normalized;
+}
+
+function clampDurationSeconds(seconds) {
+  if (!Number.isFinite(seconds)) {
+    return 25 * 60;
+  }
+  const rounded = Math.round(seconds);
+  return Math.min(MAX_SESSION_SECONDS, Math.max(MIN_SESSION_SECONDS, rounded));
+}
+
+function formatClock(totalSeconds) {
+  const safeSeconds = Math.max(0, Math.round(totalSeconds));
+  const minutes = Math.floor(safeSeconds / 60)
+    .toString()
+    .padStart(2, '0');
+  const seconds = (safeSeconds % 60)
+    .toString()
+    .padStart(2, '0');
+  return `${minutes}:${seconds}`;
+}
+
+function sanitizeDurationInput(text) {
+  let cleaned = '';
+  let colonUsed = false;
+  for (const char of text) {
+    if (/[0-9]/.test(char)) {
+      cleaned += char;
+      continue;
+    }
+    if (char === ':' && !colonUsed && cleaned.length > 0) {
+      cleaned += ':';
+      colonUsed = true;
+    }
+  }
+  return cleaned.slice(0, 5);
+}
+
+function parseDurationText(text) {
+  if (!text) return null;
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+
+  const sanitized = trimmed.replace(/[^0-9:]/g, '');
+  if (!sanitized) return null;
+
+  if (sanitized.includes(':')) {
+    const [minutePart, secondPart = '0'] = sanitized.split(':');
+    if (minutePart === '') return null;
+    const minutes = parseInt(minutePart, 10);
+    const secondsFragment = secondPart.substring(0, 2);
+    const seconds = secondsFragment === '' ? 0 : parseInt(secondsFragment, 10);
+    if (Number.isNaN(minutes) || Number.isNaN(seconds)) return null;
+    return minutes * 60 + Math.min(59, Math.max(0, seconds));
+  }
+
+  const minutesOnly = parseInt(sanitized, 10);
+  if (Number.isNaN(minutesOnly)) return null;
+  return minutesOnly * 60;
+}
+
+function insertTextAtCursor(text) {
+  if (!text) return;
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) return;
+  selection.deleteFromDocument();
+  const range = selection.getRangeAt(0);
+  const textNode = document.createTextNode(text);
+  range.insertNode(textNode);
+  range.setStartAfter(textNode);
+  range.collapse(true);
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
+function selectCountdownText(element) {
+  if (!element) return;
+  const selection = window.getSelection();
+  if (!selection) return;
+  const range = document.createRange();
+  range.selectNodeContents(element);
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
+function persistDurationSetting(seconds) {
+  settings.lastDurationSeconds = clampDurationSeconds(seconds);
+  persistStorage(STORAGE_KEYS.settings, settings);
 }
 
 function createId() {

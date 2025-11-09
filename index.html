@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png">
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Focus Flow</title>
@@ -26,17 +27,19 @@
         <div class="timer-stack">
           <section class="timer-card" aria-live="polite">
             <header class="card-header timer-header">
-              <div>
-                <h2>Focus Session</h2>
-                <p class="muted">Dial in, breathe, and let the minutes work for you.</p>
-              </div>
-              <div class="length-input">
-                <label for="session-length">Minutes</label>
-                <input id="session-length" name="session-length" type="number" min="1" max="90" step="1" value="25" />
-              </div>
+              <h2>Focus Session</h2>
+              <p class="muted">Dial in, breathe, and let the minutes work for you.</p>
             </header>
             <div class="timer-visual" data-state="idle">
-              <span class="timer-countdown" role="timer" aria-live="assertive">25:00</span>
+              <span
+                class="timer-countdown"
+                role="timer"
+                aria-live="assertive"
+                aria-label="Pomodoro duration"
+                contenteditable="true"
+                spellcheck="false"
+                data-editable-timer
+              >25:00</span>
               <div class="timer-ring">
                 <svg viewBox="0 0 120 120" class="progress-ring">
                   <circle class="progress-ring__bg" cx="60" cy="60" r="54"></circle>

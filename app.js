@@ -10,7 +10,7 @@ const timerVisual = document.querySelector('.timer-visual');
 const countdownEl = document.querySelector('.timer-countdown');
 const progressCircle = document.querySelector('.progress-ring__value');
 const startButton = document.getElementById('start-button');
-const togglePauseButton = document.getElementById('toggle-pause-button');
+const timerControls = document.querySelector('.timer-controls');
 const resetButton = document.getElementById('reset-button');
 const todoForm = document.getElementById('todo-form');
 const todoInput = document.getElementById('todo-input');
@@ -313,16 +313,13 @@ function setupControls() {
   startButton.addEventListener('click', () => {
     if (timer.state === 'idle' || timer.state === 'complete') {
       timer.start();
-    }
-  });
-
-  togglePauseButton.addEventListener('click', () => {
-    if (timer.state === 'running') {
+    } else if (timer.state === 'running') {
       timer.pause();
     } else if (timer.state === 'paused') {
       timer.resume();
     }
   });
+
   resetButton.addEventListener('click', () => timer.reset());
 }
 
@@ -661,11 +658,20 @@ function updateTimerState(state) {
     }
   }
 
-  startButton.disabled = stateIsRunning || stateIsPaused;
-  togglePauseButton.disabled = !(stateIsRunning || stateIsPaused);
+  let startMode = 'start';
+  let startLabel = 'Start Focus';
 
-  const startLabel = stateIsComplete ? 'Restart Focus' : 'Start Focus';
-  const startMode = stateIsComplete ? 'restart' : 'start';
+  if (stateIsRunning) {
+    startMode = 'pause';
+    startLabel = 'Pause Focus';
+  } else if (stateIsPaused) {
+    startMode = 'resume';
+    startLabel = 'Resume Focus';
+  } else if (stateIsComplete) {
+    startMode = 'restart';
+    startLabel = 'Restart Focus';
+  }
+
   startButton.dataset.mode = startMode;
   startButton.setAttribute('aria-label', startLabel);
   startButton.setAttribute('title', startLabel);
@@ -674,14 +680,17 @@ function updateTimerState(state) {
     startSrOnly.textContent = startLabel;
   }
 
-  const toggleMode = stateIsPaused ? 'resume' : 'pause';
-  const toggleLabel = stateIsPaused ? 'Resume Focus' : 'Pause Focus';
-  togglePauseButton.dataset.mode = toggleMode;
-  togglePauseButton.setAttribute('aria-label', toggleLabel);
-  togglePauseButton.setAttribute('title', toggleLabel);
-  const toggleSrOnly = togglePauseButton.querySelector('.sr-only');
-  if (toggleSrOnly) {
-    toggleSrOnly.textContent = toggleLabel;
+  startButton.disabled = false;
+
+  const shouldShowSecondary = stateIsRunning || stateIsPaused;
+  if (timerControls) {
+    timerControls.classList.toggle('is-visible', shouldShowSecondary);
+    timerControls.setAttribute('aria-hidden', shouldShowSecondary ? 'false' : 'true');
+  }
+  if (resetButton) {
+    resetButton.disabled = !shouldShowSecondary;
+    resetButton.setAttribute('aria-hidden', shouldShowSecondary ? 'false' : 'true');
+    resetButton.setAttribute('tabindex', shouldShowSecondary ? '0' : '-1');
   }
 
   if (state === 'idle') {

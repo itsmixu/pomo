@@ -63,15 +63,17 @@
               <p class="muted">Dial in, breathe, and let the minutes work for you.</p>
             </header>
             <div class="timer-visual" data-state="idle">
-              <span
-                class="timer-countdown"
-                role="timer"
-                aria-live="assertive"
-                aria-label="Pomodoro duration"
-                contenteditable="true"
-                spellcheck="false"
-                data-editable-timer
-              >25:00</span>
+              <div class="timer-face">
+                <span
+                  class="timer-countdown"
+                  role="timer"
+                  aria-live="assertive"
+                  aria-label="Pomodoro duration"
+                  contenteditable="true"
+                  spellcheck="false"
+                  data-editable-timer
+                >25:00</span>
+              </div>
               <div class="timer-ring">
                 <svg viewBox="0 0 120 120" class="progress-ring">
                   <circle class="progress-ring__bg" cx="60" cy="60" r="54"></circle>
@@ -79,88 +81,99 @@
                 </svg>
               </div>
             </div>
-            <div class="timer-controls">
-              <button
-                id="start-button"
-                class="primary icon-button"
-                type="button"
-                data-mode="start"
-                aria-label="Start Focus"
-                title="Start Focus"
-              >
-                <svg class="icon icon-play" aria-hidden="true" viewBox="0 0 24 24" data-mode-icon="start">
-                  <path d="M8.25 5.25v13.5L19 12 8.25 5.25Z" fill="currentColor"></path>
-                </svg>
-                <svg class="icon icon-restart" aria-hidden="true" viewBox="0 0 24 24" data-mode-icon="restart">
-                  <path
-                    d="M4.5 12a7.5 7.5 0 0112.75-5.303M19.5 12a7.5 7.5 0 01-12.75 5.303"
-                    stroke-width="1.8"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke="currentColor"
-                    fill="none"
-                  ></path>
-                  <path
-                    d="M16.5 6.697V3.75m0 0h-2.95m2.95 0h2.95"
-                    stroke-width="1.8"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke="currentColor"
-                    fill="none"
-                  ></path>
-                </svg>
-                <span class="sr-only">Start Focus</span>
-              </button>
-              <button
-                id="toggle-pause-button"
-                class="icon-button"
-                type="button"
-                disabled
-                data-mode="pause"
-                aria-label="Pause Focus"
-                title="Pause Focus"
-              >
-                <svg class="icon icon-pause" aria-hidden="true" viewBox="0 0 24 24" data-mode-icon="pause">
-                  <path d="M8 6h3v12H8zM13 6h3v12h-3z" fill="currentColor"></path>
-                </svg>
-                <svg class="icon icon-play" aria-hidden="true" viewBox="0 0 24 24" data-mode-icon="resume">
-                  <path d="M8.25 5.25v13.5L19 12 8.25 5.25Z" fill="currentColor"></path>
-                </svg>
-                <span class="sr-only">Pause Focus</span>
-              </button>
-              <button
-                id="reset-button"
-                class="icon-button"
-                type="button"
-                aria-label="Reset Timer"
-                title="Reset Timer"
-              >
-                <svg class="icon icon-reset" aria-hidden="true" viewBox="0 0 24 24">
-                  <path
-                    d="M12 5a7 7 0 11-6.4 10"
-                    stroke-width="1.8"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    fill="none"
-                    stroke="currentColor"
-                  ></path>
-                  <path
-                    d="M4.5 9.5H8V6"
-                    stroke-width="1.8"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    fill="none"
-                    stroke="currentColor"
-                  ></path>
-                </svg>
-                <span class="sr-only">Reset Timer</span>
-              </button>
+            <div class="timer-actions">
+              <div class="timer-primary-action">
+                <button
+                  id="start-button"
+                  class="primary icon-button"
+                  type="button"
+                  data-mode="start"
+                  aria-label="Start Focus"
+                  title="Start Focus"
+                >
+                  <svg class="icon icon-play" aria-hidden="true" viewBox="0 0 24 24" data-mode-icon="start">
+                    <path d="M8.25 5.25v13.5L19 12 8.25 5.25Z" fill="currentColor"></path>
+                  </svg>
+                  <svg class="icon icon-pause" aria-hidden="true" viewBox="0 0 24 24" data-mode-icon="pause">
+                    <path d="M8 6h3v12H8zM13 6h3v12h-3z" fill="currentColor"></path>
+                  </svg>
+                  <svg class="icon icon-play" aria-hidden="true" viewBox="0 0 24 24" data-mode-icon="resume">
+                    <path d="M8.25 5.25v13.5L19 12 8.25 5.25Z" fill="currentColor"></path>
+                  </svg>
+                  <svg class="icon icon-restart" aria-hidden="true" viewBox="0 0 24 24" data-mode-icon="restart">
+                    <path
+                      d="M4.5 12a7.5 7.5 0 0112.75-5.303M19.5 12a7.5 7.5 0 01-12.75 5.303"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke="currentColor"
+                      fill="none"
+                    ></path>
+                    <path
+                      d="M16.5 6.697V3.75m0 0h-2.95m2.95 0h2.95"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke="currentColor"
+                      fill="none"
+                    ></path>
+                  </svg>
+                  <span class="sr-only">Start Focus</span>
+                </button>
+              </div>
+              <div class="timer-controls" aria-hidden="true">
+                <button
+                  id="reset-button"
+                  class="icon-button"
+                  type="button"
+                  aria-label="Reset Timer"
+                  title="Reset Timer"
+                  aria-hidden="true"
+                  tabindex="-1"
+                >
+                  <svg class="icon icon-reset" aria-hidden="true" viewBox="0 0 24 24">
+                    <path
+                      d="M12 4A8 8 0 1 1 6.34 6.34"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    ></path>
+                    <path
+                      d="M12 4H8"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    ></path>
+                    <path
+                      d="M8 4 9.8 2.2"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    ></path>
+                    <path
+                      d="M8 4 9.8 5.8"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    ></path>
+                  </svg>
+                  <span class="sr-only">Reset Timer</span>
+                </button>
+              </div>
             </div>
           </section>
           <section class="todo-card">
             <header class="card-header">
               <div>
-                <h2>Session Notes</h2>
+                <h2>To-Do List</h2>
                 <p class="muted">Capture tasks to keep your focus anchored.</p>
               </div>
             </header>

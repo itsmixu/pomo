@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Focus Flow</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-header">
+      <div class="brand">
+        <span class="brand-dot"></span>
+        <h1>Focus Flow</h1>
+      </div>
+      <nav class="tab-nav" aria-label="Primary">
+        <button class="tab-button is-active" data-tab-target="timer" type="button">Pomodoro</button>
+        <button class="tab-button" data-tab-target="history" type="button">History</button>
+      </nav>
+    </header>
+    <main class="app-main">
+      <section id="timer" class="tab-panel is-active" aria-labelledby="pomodoro-tab">
+        <div class="timer-stack">
+          <section class="timer-card" aria-live="polite">
+            <header class="card-header timer-header">
+              <div>
+                <h2>Focus Session</h2>
+                <p class="muted">Dial in, breathe, and let the minutes work for you.</p>
+              </div>
+              <div class="length-input">
+                <label for="session-length">Minutes</label>
+                <input id="session-length" name="session-length" type="number" min="1" max="90" step="1" value="25" />
+              </div>
+            </header>
+            <div class="timer-visual" data-state="idle">
+              <span class="timer-countdown" role="timer" aria-live="assertive">25:00</span>
+              <div class="timer-ring">
+                <svg viewBox="0 0 120 120" class="progress-ring">
+                  <circle class="progress-ring__bg" cx="60" cy="60" r="54"></circle>
+                  <circle class="progress-ring__value" cx="60" cy="60" r="54"></circle>
+                </svg>
+              </div>
+            </div>
+            <div class="timer-controls">
+              <button id="start-button" class="primary" type="button">Start Focus</button>
+              <button id="pause-button" type="button" disabled>Pause</button>
+              <button id="resume-button" type="button" disabled>Resume</button>
+              <button id="reset-button" type="button">Reset</button>
+            </div>
+          </section>
+          <section class="todo-card">
+            <header class="card-header">
+              <div>
+                <h2>Session Notes</h2>
+                <p class="muted">Capture tasks to keep your focus anchored.</p>
+              </div>
+            </header>
+            <form id="todo-form" class="todo-form">
+              <label for="todo-input" class="sr-only">Add a task</label>
+              <input id="todo-input" name="todo-input" type="text" placeholder="What will you tackle next?" autocomplete="off" />
+              <button type="submit" class="primary">Add</button>
+            </form>
+            <ul id="todo-list" class="todo-list" aria-live="polite"></ul>
+          </section>
+        </div>
+      </section>
+      <section id="history" class="tab-panel" aria-labelledby="history-tab" hidden>
+        <header class="history-header">
+          <div>
+            <h2>Focus History</h2>
+            <p class="muted">Review your completed Pomodoro sessions and momentum.</p>
+          </div>
+          <button id="clear-history" type="button" class="ghost">Clear History</button>
+        </header>
+        <div id="history-empty" class="empty-state" hidden>
+          <p>No sessions yet. Your streak starts with the next focus cycle.</p>
+        </div>
+        <ul id="history-list" class="history-list"></ul>
+      </section>
+    </main>
+  </div>
+  <template id="history-item-template">
+    <li class="history-item">
+      <div class="history-meta">
+        <span class="history-time"></span>
+        <span class="history-duration"></span>
+      </div>
+      <div class="history-tasks"></div>
+    </li>
+  </template>
+  <script src="app.js" type="module"></script>
+</body>
+</html>

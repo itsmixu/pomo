@@ -19,6 +19,77 @@ const historyListEl = document.getElementById('history-list');
 const historyEmptyEl = document.getElementById('history-empty');
 const clearHistoryButton = document.getElementById('clear-history');
 const historyTemplate = document.getElementById('history-item-template');
+const focusMessageEl = document.querySelector('.timer-header .muted');
+
+const DEFAULT_FOCUS_MESSAGE = 'Dial in, breathe, and let the minutes work for you.';
+const motivationalQuotes = [
+  'Deep focus builds deep results.',
+  'Small steps right now become big wins later.',
+  'Stay with the work; momentum is here.',
+  'You chose this task; own it fully.',
+  'Progress loves consistency more than speed.',
+  'Keep attention on the next useful move.',
+  'Let distraction pass; stay with the signal.',
+  'Patience plus effort equals progress.',
+  'You are building future ease in present effort.',
+  'Push through the quiet; clarity follows.',
+  'The work in front of you matters most.',
+  'Curiosity keeps your mind engaged; lean in.',
+  'One focused block unlocks another.',
+  'Aim for clean execution, not quick escape.',
+  'Stay deliberate; the clock is on your side.',
+  'You thrive when you show up with intention.',
+  'Keep crafting; skill sharpens under pressure.',
+  'Your future self is grateful for this minute.',
+  'Hold steady; the solution is forming.',
+  'Focus muscles grow with reps like this.',
+  'Every keystroke is a brick in your vision.',
+  'Right now is the only time you can shape.',
+  'Stay present; momentum loves commitment.',
+  'You are closer with every engaged breath.',
+  'Quality emerges from sustained attention.',
+  'Let the rhythm of work settle you.',
+  'Discipline today writes easier tomorrows.',
+  'Keep refining; calm effort compounds.',
+  'Lean into the challenge; you adapt fast.',
+  'Noise fades when purpose leads the way.',
+  'Your craft improves under thoughtful focus.',
+  'Stick with it; breakthroughs favor persistence.',
+  'Attention is your most powerful tool; wield it.',
+  'You are capable; prove it one minute at a time.',
+  'Protect this block; it protects your goals.',
+  'Deep work now creates creative space later.',
+  'Keep eyes on the path, not the clock.',
+  'The next insight is a breath away.',
+  'Trust the process; iteration breeds mastery.',
+  'Stay locked in; you are in the right place.',
+  'Your effort is aligning opportunity.',
+  'Let dedication outshine doubt.',
+  'You are sculpting results with focus.',
+  'Hold your attention; it sharpens every detail.',
+  'Momentum rewards steady builders.',
+  'Show up for the full session; you earn the break.',
+  'Turn quiet concentration into visible progress.',
+  'Commit to now; the rest can wait.',
+  'Stay engaged; your work deserves it.',
+  'Confidence grows where effort is invested.'
+];
+let lastMotivationalIndex = -1;
+let activeFocusQuote = '';
+
+function getRandomMotivationalQuote() {
+  if (!motivationalQuotes.length) {
+    return DEFAULT_FOCUS_MESSAGE;
+  }
+  let index = Math.floor(Math.random() * motivationalQuotes.length);
+  if (motivationalQuotes.length > 1) {
+    while (index === lastMotivationalIndex) {
+      index = Math.floor(Math.random() * motivationalQuotes.length);
+    }
+  }
+  lastMotivationalIndex = index;
+  return motivationalQuotes[index];
+}
 
 const MIN_SESSION_SECONDS = 30;
 const MAX_SESSION_SECONDS = 90 * 60;
@@ -576,6 +647,18 @@ function updateTimerState(state) {
   const stateIsRunning = state === 'running';
   const stateIsPaused = state === 'paused';
   const stateIsComplete = state === 'complete';
+
+  if (focusMessageEl) {
+    if (stateIsRunning || stateIsPaused) {
+      if (!activeFocusQuote) {
+        activeFocusQuote = getRandomMotivationalQuote();
+      }
+      focusMessageEl.textContent = activeFocusQuote;
+    } else {
+      activeFocusQuote = '';
+      focusMessageEl.textContent = DEFAULT_FOCUS_MESSAGE;
+    }
+  }
 
   startButton.disabled = stateIsRunning || stateIsPaused;
   togglePauseButton.disabled = !(stateIsRunning || stateIsPaused);

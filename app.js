@@ -42,70 +42,74 @@ lengthInput.value = initialMinutes;
 class PomodoroTimer {
   constructor({ totalSeconds = 1500, onTick, onStateChange, onComplete } = {}) {
     this.totalSeconds = totalSeconds;
-    this.remainingSeconds = totalSeconds;
+    this.totalMs = totalSeconds * 1000;
     this.state = 'idle';
-    this.intervalId = null;
+    this.frameId = null;
     this.startedAt = null;
+    this.startTimestamp = null;
+    this.elapsedMsBase = 0;
+    this.remainingSeconds = totalSeconds;
     this.onTick = onTick;
     this.onStateChange = onStateChange;
     this.onComplete = onComplete;
+    this.handleFrame = this.handleFrame.bind(this);
   }
 
   configure(totalSeconds) {
-    this.totalSeconds = Math.max(60, totalSeconds);
-    if (this.state === 'running' || this.state === 'paused') return;
-    this.remainingSeconds = this.totalSeconds;
-    this.startedAt = null;
-    if (this.state !== 'idle') {
-      this.switchState('idle');
+    const clampedSeconds = Math.max(60, totalSeconds);
+    this.totalSeconds = clampedSeconds;
+    this.totalMs = clampedSeconds * 1000;
+    if (this.state === 'running' || this.state === 'paused') {
+      return;
     }
+    this.elapsedMsBase = 0;
+    this.remainingSeconds = this.totalSeconds;
     this.emitTick();
   }
 
   start() {
     if (this.state !== 'idle' && this.state !== 'complete') return;
+    this.cancelFrame();
+    this.elapsedMsBase = 0;
     this.remainingSeconds = this.totalSeconds;
     this.startedAt = new Date();
+    this.startTimestamp = performance.now();
     this.switchState('running');
     this.emitTick();
-    this.intervalId = window.setInterval(() => this.tick(), 1000);
+    this.frameId = requestAnimationFrame(this.handleFrame);
   }
 
   pause() {
     if (this.state !== 'running') return;
-    window.clearInterval(this.intervalId);
-    this.intervalId = null;
+    this.updateElapsedFromNow();
+    this.cancelFrame();
     this.switchState('paused');
+    this.emitTick();
   }
 
   resume() {
     if (this.state !== 'paused') return;
+    this.startTimestamp = performance.now();
     this.switchState('running');
-    this.intervalId = window.setInterval(() => this.tick(), 1000);
+    this.emitTick();
+    this.frameId = requestAnimationFrame(this.handleFrame);
   }
 
   reset() {
-    window.clearInterval(this.intervalId);
-    this.intervalId = null;
+    this.cancelFrame();
+    this.elapsedMsBase = 0;
     this.remainingSeconds = this.totalSeconds;
     this.startedAt = null;
+    this.startTimestamp = null;
     this.switchState('idle');
     this.emitTick();
   }
 
-  tick() {
-    if (this.state !== 'running') return;
-    this.remainingSeconds = Math.max(0, this.remainingSeconds - 1);
-    this.emitTick();
-
-    if (this.remainingSeconds === 0) {
-      this.complete();
-    }
-  }
-
   complete() {
-    window.clearInterval(this.intervalId);
-    this.intervalId = null;
+    this.cancelFrame();
+    this.elapsedMsBase = this.totalMs;
+    this.remainingSeconds = 0;
+    this.startTimestamp = null;
     const endedAt = new Date();
     this.switchState('complete');
     this.emitTick();
@@ -115,6 +119,43 @@ class PomodoroTimer {
         endedAt,
         totalSeconds: this.totalSeconds
       });
+    }
+  }
+
+  handleFrame(timestamp) {
+    if (this.state !== 'running') return;
+    this.updateElapsedFromTimestamp(timestamp);
+    if (this.remainingSeconds <= 0) {
+      this.complete();
+      return;
+    }
+    this.emitTick();
+    this.frameId = requestAnimationFrame(this.handleFrame);
+  }
+
+  updateElapsedFromTimestamp(timestamp) {
+    if (this.startTimestamp == null) {
+      this.startTimestamp = timestamp;
+    }
+    const elapsedSinceStart = timestamp - this.startTimestamp;
+    const elapsedTotal = this.elapsedMsBase + elapsedSinceStart;
+    const clampedElapsed = Math.min(this.totalMs, elapsedTotal);
+    this.remainingSeconds = Math.max(0, (this.totalMs - clampedElapsed) / 1000);
+  }
+
+  updateElapsedFromNow() {
+    if (this.startTimestamp == null) return;
+    const now = performance.now();
+    const elapsedSinceStart = now - this.startTimestamp;
+    this.elapsedMsBase = Math.min(this.totalMs, this.elapsedMsBase + elapsedSinceStart);
+    this.remainingSeconds = Math.max(0, (this.totalMs - this.elapsedMsBase) / 1000);
+    this.startTimestamp = null;
+  }
+
+  cancelFrame() {
+    if (this.frameId != null) {
+      cancelAnimationFrame(this.frameId);
+      this.frameId = null;
     }
   }
 
@@ -223,17 +264,36 @@ function setupHistoryActions() {
   });
 }
 
-function updateTimerDisplay({ remainingSeconds, totalSeconds }) {
-  const minutes = Math.floor(remainingSeconds / 60)
-    .toString()
-    .padStart(2, '0');
-  const seconds = Math.floor(remainingSeconds % 60)
-    .toString()
-    .padStart(2, '0');
-  countdownEl.textContent = `${minutes}:${seconds}`;
+function updateTimerDisplay({ remainingSeconds, totalSeconds, state }) {
+  const safeRemaining = Math.max(0, remainingSeconds);
+  const minutesValue = Math.floor(safeRemaining / 60);
+  const secondsValue = Math.floor(safeRemaining % 60);
+  const minutes = minutesValue.toString().padStart(2, '0');
+  const seconds = secondsValue.toString().padStart(2, '0');
+  const nextDisplay = `${minutes}:${seconds}`;
+  if (countdownEl.textContent !== nextDisplay) {
+    countdownEl.textContent = nextDisplay;
+  }
 
-  const progress = totalSeconds === 0 ? 0 : 1 - remainingSeconds / totalSeconds;
+  const total = Math.max(1, totalSeconds);
+  const progress = total === 0 ? 0 : 1 - safeRemaining / total;
   setProgress(progress);
+
+  const baseTitle = 'Focus Flow';
+  if (state === 'running') {
+    const nextTitle = `${baseTitle} • ${minutes}:${seconds}`;
+    if (document.title !== nextTitle) {
+      document.title = nextTitle;
+    }
+  } else if (state === 'complete') {
+    if (document.title !== `${baseTitle} • Done!`) {
+      document.title = `${baseTitle} • Done!`;
+    }
+  } else {
+    if (document.title !== baseTitle) {
+      document.title = baseTitle;
+    }
+  }
 }
 
 function updateTimerState(state) {
@@ -256,7 +316,8 @@ function updateTimerState(state) {
 }
 
 function setProgress(value) {
-  const offset = circleCircumference * (1 - value);
+  const clamped = Math.min(1, Math.max(0, value));
+  const offset = circleCircumference * (1 - clamped);
   progressCircle.style.strokeDashoffset = `${offset}`;
 }
 

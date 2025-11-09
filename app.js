@@ -10,8 +10,7 @@ const timerVisual = document.querySelector('.timer-visual');
 const countdownEl = document.querySelector('.timer-countdown');
 const progressCircle = document.querySelector('.progress-ring__value');
 const startButton = document.getElementById('start-button');
-const pauseButton = document.getElementById('pause-button');
-const resumeButton = document.getElementById('resume-button');
+const togglePauseButton = document.getElementById('toggle-pause-button');
 const resetButton = document.getElementById('reset-button');
 const todoForm = document.getElementById('todo-form');
 const todoInput = document.getElementById('todo-input');
@@ -245,8 +244,13 @@ function setupControls() {
     }
   });
 
-  pauseButton.addEventListener('click', () => timer.pause());
-  resumeButton.addEventListener('click', () => timer.resume());
+  togglePauseButton.addEventListener('click', () => {
+    if (timer.state === 'running') {
+      timer.pause();
+    } else if (timer.state === 'paused') {
+      timer.resume();
+    }
+  });
   resetButton.addEventListener('click', () => timer.reset());
 }
 
@@ -285,6 +289,8 @@ function setupCountdownEditor() {
   countdownEl.addEventListener('focus', handleCountdownFocus);
   countdownEl.addEventListener('blur', handleCountdownBlur);
   countdownEl.addEventListener('keydown', handleCountdownKeydown);
+  countdownEl.addEventListener('beforeinput', handleCountdownBeforeInput);
+  countdownEl.addEventListener('cut', handleCountdownCut);
   countdownEl.addEventListener('paste', handleCountdownPaste);
 }
 
@@ -364,9 +370,170 @@ function handleCountdownKeydown(event) {
 
 function handleCountdownPaste(event) {
   event.preventDefault();
+  if (!isCountdownEditing) return;
   const text = event.clipboardData?.getData('text') ?? '';
-  const sanitized = sanitizeDurationInput(text);
-  insertTextAtCursor(sanitized);
+  const sanitizedDigits = sanitizeDurationInput(text).replace(/[^0-9]/g, '');
+  replaceCountdownDigitsAtSelection(sanitizedDigits);
+}
+
+function handleCountdownBeforeInput(event) {
+  if (!isCountdownEditing) return;
+  const selection = getCountdownSelectionRange();
+  if (!selection) return;
+  const digitRange = getCountdownDigitRange(selection);
+  const isCollapsed = selection.start === selection.end;
+
+  switch (event.inputType) {
+    case 'insertText':
+    case 'insertCompositionText': {
+      const digits = event.data?.replace(/[^0-9]/g, '') ?? '';
+      event.preventDefault();
+      if (digits.length === 0) {
+        return;
+      }
+      replaceCountdownDigits(digitRange, digits);
+      break;
+    }
+    case 'deleteContentBackward': {
+      event.preventDefault();
+      if (isCollapsed && digitRange.start === 0) return;
+      const start = Math.max(0, isCollapsed ? digitRange.start - 1 : digitRange.start);
+      replaceCountdownDigits({ start, end: digitRange.end }, '');
+      break;
+    }
+    case 'deleteContentForward': {
+      event.preventDefault();
+      if (isCollapsed && digitRange.start >= 4) return;
+      const end = isCollapsed ? Math.min(4, digitRange.start + 1) : digitRange.end;
+      replaceCountdownDigits({ start: digitRange.start, end }, '');
+      break;
+    }
+    case 'deleteContent':
+    case 'deleteByCut': {
+      event.preventDefault();
+      replaceCountdownDigits(digitRange, '');
+      break;
+    }
+    case 'insertFromPaste':
+    case 'insertReplacementText': {
+      event.preventDefault();
+      const clipboardData = event.clipboardData ?? null;
+      const raw = clipboardData?.getData?.('text') ?? '';
+      const digits = sanitizeDurationInput(raw).replace(/[^0-9]/g, '');
+      replaceCountdownDigits(digitRange, digits);
+      break;
+    }
+    default: {
+      if (event.inputType.startsWith('insert')) {
+        event.preventDefault();
+      }
+    }
+  }
+}
+
+function handleCountdownCut(event) {
+  if (!isCountdownEditing) return;
+  event.preventDefault();
+  const selection = getCountdownSelectionRange();
+  if (!selection || selection.start === selection.end) return;
+  const text = countdownEl.textContent ?? '';
+  const selectedText = text.slice(selection.start, selection.end);
+  if (event.clipboardData) {
+    event.clipboardData.setData('text/plain', selectedText);
+  } else if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(selectedText).catch(() => {});
+  }
+  replaceCountdownDigitsAtSelection('');
+}
+
+function replaceCountdownDigitsAtSelection(insertDigits) {
+  const selection = getCountdownSelectionRange();
+  if (!selection) return;
+  const digitRange = getCountdownDigitRange(selection);
+  replaceCountdownDigits(digitRange, insertDigits);
+}
+
+function getCountdownSelectionRange() {
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) return null;
+  const range = selection.getRangeAt(0);
+  if (!countdownEl.contains(range.startContainer) || !countdownEl.contains(range.endContainer)) {
+    return null;
+  }
+  const preRange = range.cloneRange();
+  preRange.selectNodeContents(countdownEl);
+  preRange.setEnd(range.startContainer, range.startOffset);
+  const start = preRange.toString().length;
+  const length = range.toString().length;
+  return {
+    start,
+    end: start + length
+  };
+}
+
+function getCountdownDigitRange(selection) {
+  const text = countdownEl.textContent ?? '';
+  const startDigits = text.slice(0, selection.start).replace(/\D/g, '').length;
+  const endDigits = text.slice(0, selection.end).replace(/\D/g, '').length;
+  return {
+    start: Math.min(startDigits, 4),
+    end: Math.min(endDigits, 4)
+  };
+}
+
+function setCountdownCaretPosition(position) {
+  countdownEl.normalize();
+  const node = countdownEl.firstChild;
+  if (!node || node.nodeType !== Node.TEXT_NODE) {
+    return;
+  }
+  const clamped = Math.max(0, Math.min(position, node.textContent?.length ?? 0));
+  const range = document.createRange();
+  range.setStart(node, clamped);
+  range.collapse(true);
+  const selection = window.getSelection();
+  if (!selection) return;
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
+function getCountdownDigits() {
+  const text = countdownEl.textContent ?? '';
+  return text.replace(/\D/g, '').padEnd(4, '0').slice(0, 4);
+}
+
+function renderCountdownDigits(digits) {
+  const normalized = digits.padEnd(4, '0').slice(0, 4);
+  const next = `${normalized.slice(0, 2)}:${normalized.slice(2, 4)}`;
+  if (countdownEl.textContent !== next) {
+    countdownEl.textContent = next;
+  }
+}
+
+function digitIndexToTextIndex(digitIndex) {
+  const text = countdownEl.textContent ?? '';
+  let digitsSeen = 0;
+  for (let i = 0; i < text.length; i++) {
+    if (/\d/.test(text[i])) {
+      if (digitsSeen === digitIndex) {
+        return i;
+      }
+      digitsSeen += 1;
+    }
+  }
+  return text.length;
+}
+
+function replaceCountdownDigits(range, rawInsertDigits) {
+  const digits = getCountdownDigits();
+  const start = Math.max(0, Math.min(range.start, 4));
+  const end = Math.max(start, Math.min(range.end, 4));
+  const insertDigits = rawInsertDigits.replace(/[^0-9]/g, '');
+  const combined = `${digits.slice(0, start)}${insertDigits}${digits.slice(end)}`;
+  const nextDigits = combined.slice(0, 4).padEnd(4, '0');
+  renderCountdownDigits(nextDigits);
+  const caretDigitIndex = Math.min(start + insertDigits.length, 4);
+  setCountdownCaretPosition(digitIndexToTextIndex(caretDigitIndex));
 }
 
 function updateTimerDisplay({ remainingSeconds, totalSeconds, state }) {
@@ -404,16 +571,34 @@ function updateTimerDisplay({ remainingSeconds, totalSeconds, state }) {
 
 function updateTimerState(state) {
   timerVisual.dataset.state = state;
+  document.body.dataset.timerState = state;
 
   const stateIsRunning = state === 'running';
   const stateIsPaused = state === 'paused';
   const stateIsComplete = state === 'complete';
 
   startButton.disabled = stateIsRunning || stateIsPaused;
-  pauseButton.disabled = !stateIsRunning;
-  resumeButton.disabled = !stateIsPaused;
+  togglePauseButton.disabled = !(stateIsRunning || stateIsPaused);
 
-  startButton.textContent = stateIsComplete ? 'Restart Focus' : 'Start Focus';
+  const startLabel = stateIsComplete ? 'Restart Focus' : 'Start Focus';
+  const startMode = stateIsComplete ? 'restart' : 'start';
+  startButton.dataset.mode = startMode;
+  startButton.setAttribute('aria-label', startLabel);
+  startButton.setAttribute('title', startLabel);
+  const startSrOnly = startButton.querySelector('.sr-only');
+  if (startSrOnly) {
+    startSrOnly.textContent = startLabel;
+  }
+
+  const toggleMode = stateIsPaused ? 'resume' : 'pause';
+  const toggleLabel = stateIsPaused ? 'Resume Focus' : 'Pause Focus';
+  togglePauseButton.dataset.mode = toggleMode;
+  togglePauseButton.setAttribute('aria-label', toggleLabel);
+  togglePauseButton.setAttribute('title', toggleLabel);
+  const toggleSrOnly = togglePauseButton.querySelector('.sr-only');
+  if (toggleSrOnly) {
+    toggleSrOnly.textContent = toggleLabel;
+  }
 
   if (state === 'idle') {
     setProgress(0);
@@ -455,8 +640,15 @@ function renderTodos() {
 
     const removeButton = document.createElement('button');
     removeButton.type = 'button';
-    removeButton.className = 'todo-remove';
-    removeButton.textContent = 'Clear';
+    removeButton.className = 'todo-remove icon-button';
+    removeButton.setAttribute('aria-label', `Remove task "${task.text}"`);
+    removeButton.setAttribute('title', 'Remove task');
+    removeButton.innerHTML = `
+      <svg class="icon icon-close" aria-hidden="true" viewBox="0 0 24 24">
+        <path d="M7 7l10 10M17 7L7 17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+      </svg>
+      <span class="sr-only">Remove task</span>
+    `;
     removeButton.addEventListener('click', () => removeTask(task.id));
 
     listItem.append(checkbox, label, removeButton);
@@ -655,20 +847,6 @@ function parseDurationText(text) {
   const minutesOnly = parseInt(sanitized, 10);
   if (Number.isNaN(minutesOnly)) return null;
   return minutesOnly * 60;
-}
-
-function insertTextAtCursor(text) {
-  if (!text) return;
-  const selection = window.getSelection();
-  if (!selection || selection.rangeCount === 0) return;
-  selection.deleteFromDocument();
-  const range = selection.getRangeAt(0);
-  const textNode = document.createTextNode(text);
-  range.insertNode(textNode);
-  range.setStartAfter(textNode);
-  range.collapse(true);
-  selection.removeAllRanges();
-  selection.addRange(range);
 }
 
 function selectCountdownText(element) {

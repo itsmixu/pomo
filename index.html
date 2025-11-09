@@ -18,8 +18,40 @@
         <h1>Focus Flow</h1>
       </div>
       <nav class="tab-nav" aria-label="Primary">
-        <button class="tab-button is-active" data-tab-target="timer" type="button">Pomodoro</button>
-        <button class="tab-button" data-tab-target="history" type="button">History</button>
+        <button
+          id="pomodoro-tab"
+          class="tab-button icon-button is-active"
+          data-tab-target="timer"
+          type="button"
+          aria-label="Pomodoro"
+          title="Pomodoro"
+        >
+          <svg class="icon icon-pomodoro" aria-hidden="true" viewBox="0 0 24 24">
+            <path d="M12 5v-2.5" stroke-linecap="round" stroke-linejoin="round" stroke="currentColor" fill="none"></path>
+            <path d="M8.5 3.5 7.2 5.2" stroke-linecap="round" stroke-linejoin="round" stroke="currentColor" fill="none"></path>
+            <path d="M15.5 3.5 16.8 5.2" stroke-linecap="round" stroke-linejoin="round" stroke="currentColor" fill="none"></path>
+            <circle cx="12" cy="13" r="7.5" stroke="currentColor" fill="none"></circle>
+            <path d="M12 9.5v4l2.5 1.5" stroke-linecap="round" stroke-linejoin="round" stroke="currentColor" fill="none"></path>
+          </svg>
+          <span class="sr-only">Pomodoro</span>
+        </button>
+        <button
+          id="history-tab"
+          class="tab-button icon-button"
+          data-tab-target="history"
+          type="button"
+          aria-label="History"
+          title="History"
+        >
+          <svg class="icon icon-history" aria-hidden="true" viewBox="0 0 24 24">
+            <path d="M6 6h12" stroke-linecap="round" stroke-linejoin="round" stroke="currentColor" fill="none"></path>
+            <path d="M6 12h12" stroke-linecap="round" stroke-linejoin="round" stroke="currentColor" fill="none"></path>
+            <path d="M6 18h12" stroke-linecap="round" stroke-linejoin="round" stroke="currentColor" fill="none"></path>
+            <path d="M10 9h8" stroke-linecap="round" stroke-linejoin="round" stroke="currentColor" fill="none"></path>
+            <path d="M10 15h8" stroke-linecap="round" stroke-linejoin="round" stroke="currentColor" fill="none"></path>
+          </svg>
+          <span class="sr-only">History</span>
+        </button>
       </nav>
     </header>
     <main class="app-main">
@@ -48,10 +80,81 @@
               </div>
             </div>
             <div class="timer-controls">
-              <button id="start-button" class="primary" type="button">Start Focus</button>
-              <button id="pause-button" type="button" disabled>Pause</button>
-              <button id="resume-button" type="button" disabled>Resume</button>
-              <button id="reset-button" type="button">Reset</button>
+              <button
+                id="start-button"
+                class="primary icon-button"
+                type="button"
+                data-mode="start"
+                aria-label="Start Focus"
+                title="Start Focus"
+              >
+                <svg class="icon icon-play" aria-hidden="true" viewBox="0 0 24 24" data-mode-icon="start">
+                  <path d="M8.25 5.25v13.5L19 12 8.25 5.25Z" fill="currentColor"></path>
+                </svg>
+                <svg class="icon icon-restart" aria-hidden="true" viewBox="0 0 24 24" data-mode-icon="restart">
+                  <path
+                    d="M4.5 12a7.5 7.5 0 0112.75-5.303M19.5 12a7.5 7.5 0 01-12.75 5.303"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke="currentColor"
+                    fill="none"
+                  ></path>
+                  <path
+                    d="M16.5 6.697V3.75m0 0h-2.95m2.95 0h2.95"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke="currentColor"
+                    fill="none"
+                  ></path>
+                </svg>
+                <span class="sr-only">Start Focus</span>
+              </button>
+              <button
+                id="toggle-pause-button"
+                class="icon-button"
+                type="button"
+                disabled
+                data-mode="pause"
+                aria-label="Pause Focus"
+                title="Pause Focus"
+              >
+                <svg class="icon icon-pause" aria-hidden="true" viewBox="0 0 24 24" data-mode-icon="pause">
+                  <path d="M8 6h3v12H8zM13 6h3v12h-3z" fill="currentColor"></path>
+                </svg>
+                <svg class="icon icon-play" aria-hidden="true" viewBox="0 0 24 24" data-mode-icon="resume">
+                  <path d="M8.25 5.25v13.5L19 12 8.25 5.25Z" fill="currentColor"></path>
+                </svg>
+                <span class="sr-only">Pause Focus</span>
+              </button>
+              <button
+                id="reset-button"
+                class="icon-button"
+                type="button"
+                aria-label="Reset Timer"
+                title="Reset Timer"
+              >
+                <svg class="icon icon-reset" aria-hidden="true" viewBox="0 0 24 24">
+                  <path
+                    d="M12 5a7 7 0 11-6.4 10"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    fill="none"
+                    stroke="currentColor"
+                  ></path>
+                  <path
+                    d="M4.5 9.5H8V6"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    fill="none"
+                    stroke="currentColor"
+                  ></path>
+                </svg>
+                <span class="sr-only">Reset Timer</span>
+              </button>
             </div>
           </section>
           <section class="todo-card">
@@ -64,7 +167,17 @@
             <form id="todo-form" class="todo-form">
               <label for="todo-input" class="sr-only">Add a task</label>
               <input id="todo-input" name="todo-input" type="text" placeholder="What will you tackle next?" autocomplete="off" />
-              <button type="submit" class="primary">Add</button>
+              <button
+                type="submit"
+                class="primary icon-button"
+                aria-label="Add task"
+                title="Add task"
+              >
+                <svg class="icon icon-plus" aria-hidden="true" viewBox="0 0 24 24">
+                  <path d="M12 5v14M5 12h14" stroke-width="1.8" stroke-linecap="round" stroke="currentColor" fill="none"></path>
+                </svg>
+                <span class="sr-only">Add task</span>
+              </button>
             </form>
             <ul id="todo-list" class="todo-list" aria-live="polite"></ul>
           </section>
@@ -76,7 +189,26 @@
             <h2>Focus History</h2>
             <p class="muted">Review your completed Pomodoro sessions and momentum.</p>
           </div>
-          <button id="clear-history" type="button" class="ghost">Clear History</button>
+          <button
+            id="clear-history"
+            type="button"
+            class="ghost icon-button"
+            aria-label="Clear history"
+            title="Clear history"
+          >
+            <svg class="icon icon-trash" aria-hidden="true" viewBox="0 0 24 24">
+              <path
+                d="M6.75 7.5h10.5M9 7.5V5.25h6V7.5m-6 0v11.25h6V7.5"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke="currentColor"
+                fill="none"
+              ></path>
+              <path d="M10.5 11v4.5M13.5 11v4.5" stroke-width="1.8" stroke-linecap="round" stroke="currentColor" fill="none"></path>
+            </svg>
+            <span class="sr-only">Clear history</span>
+          </button>
         </header>
         <div id="history-empty" class="empty-state" hidden>
           <p>No sessions yet. Your streak starts with the next focus cycle.</p>

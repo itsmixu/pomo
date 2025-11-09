@@ -79,6 +79,20 @@ body[data-timer-state="complete"]::before {
   gap: 12px;
 }
 
+.brand-version {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: rgba(226, 232, 240, 0.6);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.08);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  align-self: flex-start;
+  margin-top: 2px;
+}
+
 .brand-dot {
   width: 14px;
   height: 14px;

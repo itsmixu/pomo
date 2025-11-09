@@ -624,7 +624,7 @@ function updateTimerDisplay({ remainingSeconds, totalSeconds, state }) {
   setProgress(progress);
 
   if (!editing) {
-    const baseTitle = 'Focus Flow';
+    const baseTitle = 'Pomotive';
     if (state === 'running') {
       const nextTitle = `${baseTitle} • ${minutes}:${seconds}`;
       if (document.title !== nextTitle) {

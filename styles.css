@@ -144,6 +144,10 @@ h1 {
   width: min(100%, 760px);
 }
 
+#history.tab-panel {
+  padding-top: clamp(4px, 3vw, 8px);
+}
+
 .timer-stack {
   width: min(100%, 540px);
   margin: 0 auto;
@@ -162,6 +166,10 @@ h1 {
 .card-header h2 {
   margin: 0;
   font-size: 1.25rem;
+}
+
+.timer-header h2 {
+  font-size: clamp(1.6rem, 3.4vw, 2.2rem);
 }
 
 .timer-card .card-header {
@@ -304,7 +312,7 @@ h1 {
 }
 
 .timer-countdown {
-  font-size: clamp(3rem, 6vw, 4.8rem);
+  font-size: clamp(2.8rem, 5.4vw, 4.2rem);
   font-weight: 600;
   letter-spacing: -0.03em;
   z-index: 2;
@@ -440,8 +448,8 @@ button:disabled {
 }
 
 #start-button {
-  width: 42px;
-  height: 42px;
+  width: 56px;
+  height: 56px;
   padding: 0;
   border-radius: 999px;
   gap: 0;
@@ -453,13 +461,13 @@ button:disabled {
 
 #start-button .icon {
   display: none;
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
 }
 
 #reset-button {
-  width: 42px;
-  height: 42px;
+  width: 56px;
+  height: 56px;
   border-radius: 999px;
   padding: 0;
   display: inline-flex;
@@ -468,8 +476,8 @@ button:disabled {
 }
 
 #reset-button .icon {
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
 }
 
 #start-button[data-mode="start"] .icon[data-mode-icon="start"],

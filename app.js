@@ -1,7 +1,7 @@
 const STORAGE_KEYS = {
-  tasks: 'focus-flow.tasks',
-  sessions: 'focus-flow.sessions',
-  settings: 'focus-flow.settings'
+  tasks: 'pomotive.tasks',
+  sessions: 'pomotive.sessions',
+  settings: 'pomotive.settings'
 };
 
 const tabButtons = Array.from(document.querySelectorAll('.tab-button'));
@@ -20,6 +20,7 @@ const historyEmptyEl = document.getElementById('history-empty');
 const clearHistoryButton = document.getElementById('clear-history');
 const historyTemplate = document.getElementById('history-item-template');
 const focusMessageEl = document.querySelector('.timer-header .muted');
+const APP_NAME = 'Pomotive';
 
 const DEFAULT_FOCUS_MESSAGE = 'Dial in, breathe, and let the minutes work for you.';
 const motivationalQuotes = [
@@ -624,7 +625,7 @@ function updateTimerDisplay({ remainingSeconds, totalSeconds, state }) {
   setProgress(progress);
 
   if (!editing) {
-    const baseTitle = 'Pomotive';
+    const baseTitle = APP_NAME;
     if (state === 'running') {
       const nextTitle = `${baseTitle} • ${minutes}:${seconds}`;
       if (document.title !== nextTitle) {

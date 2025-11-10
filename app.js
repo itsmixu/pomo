@@ -116,6 +116,7 @@ persistDurationSetting(settings.lastDurationSeconds);
 const initialSeconds = clampDurationSeconds(settings.lastDurationSeconds);
 let isCountdownEditing = false;
 let countdownEditBackup = '';
+let shouldSkipCountdownCommit = false;
 
 class PomodoroTimer {
   constructor({ totalSeconds = 1500, onTick, onStateChange, onComplete } = {}) {
@@ -364,12 +365,15 @@ function setupCountdownEditor() {
 }
 
 function handleCountdownFocus() {
+  if (timer.state === 'running') {
+    shouldSkipCountdownCommit = false;
+    requestAnimationFrame(() => countdownEl.blur());
+    return;
+  }
+
   isCountdownEditing = true;
   countdownEditBackup = countdownEl.textContent?.trim() ?? '';
   countdownEl.dataset.editing = 'true';
-  if (timer.state === 'running') {
-    timer.pause();
-  }
   requestAnimationFrame(() => selectCountdownText(countdownEl));
 }
 
@@ -377,6 +381,12 @@ function handleCountdownBlur() {
   if (!isCountdownEditing) return;
   isCountdownEditing = false;
   countdownEl.dataset.editing = 'false';
+
+  if (shouldSkipCountdownCommit) {
+    shouldSkipCountdownCommit = false;
+    countdownEl.textContent = formatClock(timer.totalSeconds);
+    return;
+  }
 
   const parsedSeconds = parseDurationText(countdownEl.textContent ?? '');
 
@@ -691,6 +701,18 @@ function updateTimerState(state) {
     resetButton.disabled = !shouldShowSecondary;
     resetButton.setAttribute('aria-hidden', shouldShowSecondary ? 'false' : 'true');
     resetButton.setAttribute('tabindex', shouldShowSecondary ? '0' : '-1');
+  }
+
+  if (countdownEl) {
+    const allowEditing = !stateIsRunning;
+    countdownEl.setAttribute('contenteditable', allowEditing ? 'true' : 'false');
+    countdownEl.setAttribute('aria-disabled', allowEditing ? 'false' : 'true');
+    countdownEl.setAttribute('tabindex', allowEditing ? '0' : '-1');
+    countdownEl.classList.toggle('is-locked', !allowEditing);
+    if (!allowEditing && isCountdownEditing) {
+      shouldSkipCountdownCommit = true;
+      countdownEl.blur();
+    }
   }
 
   if (state === 'idle') {

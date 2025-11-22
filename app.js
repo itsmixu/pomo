@@ -21,6 +21,7 @@ const clearHistoryButton = document.getElementById('clear-history');
 const historyTemplate = document.getElementById('history-item-template');
 const focusMessageEl = document.querySelector('.timer-header .muted');
 const APP_NAME = 'Pomotive';
+const audioController = createAudioController();
 
 const DEFAULT_FOCUS_MESSAGE = 'Dial in, breathe, and let the minutes work for you.';
 const motivationalQuotes = [
@@ -278,8 +279,13 @@ const timer = new PomodoroTimer({
   totalSeconds: initialSeconds,
   onTick: updateTimerDisplay,
   onStateChange: updateTimerState,
-  onComplete: captureSession
+  onComplete: handleTimerComplete
 });
+
+function handleTimerComplete(sessionMeta) {
+  audioController.playChirp();
+  captureSession(sessionMeta);
+}
 
 timer.reset();
 renderTodos();
@@ -312,6 +318,7 @@ function setupTabs() {
 
 function setupControls() {
   startButton.addEventListener('click', () => {
+    audioController.playClick();
     if (timer.state === 'idle' || timer.state === 'complete') {
       timer.start();
     } else if (timer.state === 'running') {
@@ -810,6 +817,140 @@ function captureSession(sessionMeta) {
   sessions.unshift(sessionRecord);
   persistStorage(STORAGE_KEYS.sessions, sessions);
   renderHistory();
+}
+
+function createAudioController() {
+  const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextCtor) {
+    return {
+      playClick() {},
+      playChirp() {}
+    };
+  }
+
+  let context = null;
+  let masterGain = null;
+  let clickBuffer = null;
+  let chirpBuffer = null;
+
+  function ensureContext() {
+    if (context) {
+      return context;
+    }
+    try {
+      context = new AudioContextCtor({ latencyHint: 'interactive' });
+      masterGain = context.createGain();
+      masterGain.gain.value = 0.4;
+      masterGain.connect(context.destination);
+    } catch (error) {
+      context = null;
+      masterGain = null;
+    }
+    return context;
+  }
+
+  function resumeIfNeeded(ctx) {
+    if (!ctx || ctx.state !== 'suspended') {
+      return Promise.resolve();
+    }
+    return ctx.resume().catch(() => {});
+  }
+
+  function playBuffer(getBuffer) {
+    const ctx = ensureContext();
+    if (!ctx || !masterGain) return;
+    const buffer = getBuffer(ctx);
+    if (!buffer) return;
+
+    const startPlayback = () => {
+      try {
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(masterGain);
+        source.start();
+      } catch (error) {
+        // Ignore playback failures; audio is a nice-to-have.
+      }
+    };
+
+    if (ctx.state === 'suspended') {
+      resumeIfNeeded(ctx).then(startPlayback);
+    } else {
+      startPlayback();
+    }
+  }
+
+  function getClickBuffer(ctx) {
+    if (clickBuffer) {
+      return clickBuffer;
+    }
+
+    const duration = 0.14;
+    const sampleCount = Math.max(1, Math.floor(ctx.sampleRate * duration));
+    const buffer = ctx.createBuffer(1, sampleCount, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+
+    for (let i = 0; i < sampleCount; i++) {
+      const t = i / ctx.sampleRate;
+      const attack = 1 - Math.exp(-t * 100);
+      const decay = Math.exp(-t * 14);
+      const envelope = attack * decay;
+      const base = Math.sin(2 * Math.PI * 760 * t);
+      const harmonic = Math.sin(2 * Math.PI * 1140 * t);
+      data[i] = (base * 0.7 + harmonic * 0.3) * envelope * 0.8;
+    }
+
+    clickBuffer = buffer;
+    return clickBuffer;
+  }
+
+  function getChirpBuffer(ctx) {
+    if (chirpBuffer) {
+      return chirpBuffer;
+    }
+
+    const duration = 1.2;
+    const sampleCount = Math.max(1, Math.floor(ctx.sampleRate * duration));
+    const buffer = ctx.createBuffer(1, sampleCount, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    const twoPi = Math.PI * 2;
+    const bellFreq = 880;
+    const upperFreq = bellFreq * 1.5;
+    const shimmerFreq = bellFreq * 1.03;
+    let basePhase = 0;
+    let upperPhase = 0;
+    let shimmerPhase = 0;
+
+    for (let i = 0; i < sampleCount; i++) {
+      const t = i / ctx.sampleRate;
+      const attack = 1 - Math.exp(-t * 90);
+      const decay = Math.exp(-t * 2.8);
+      const envelope = attack * decay;
+
+      basePhase += (twoPi * bellFreq) / ctx.sampleRate;
+      upperPhase += (twoPi * upperFreq) / ctx.sampleRate;
+      shimmerPhase += (twoPi * shimmerFreq) / ctx.sampleRate;
+
+      const base = Math.sin(basePhase);
+      const upper = Math.sin(upperPhase);
+      const shimmer = Math.sin(shimmerPhase);
+      const gentleNoise = (Math.random() * 2 - 1) * 0.02;
+
+      data[i] = (base * 0.6 + upper * 0.25 + shimmer * 0.15 + gentleNoise) * envelope * 0.85;
+    }
+
+    chirpBuffer = buffer;
+    return chirpBuffer;
+  }
+
+  return {
+    playClick() {
+      playBuffer(getClickBuffer);
+    },
+    playChirp() {
+      playBuffer(getChirpBuffer);
+    }
+  };
 }
 
 function renderHistory() {
